@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mercadolibre-yellow: #fff159;
+  --color-mercadolibre-blue: #3483fa;
+  --color-mercadolibre-green: #00a650;
+  --color-bg-gray: #ebebeb;
+}
+
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  background-color: #ebebeb;
+}
+
+body {
+  margin: 0;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-gray-900;
+  }
+}
