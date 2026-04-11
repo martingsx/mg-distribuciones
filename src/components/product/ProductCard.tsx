@@ -12,7 +12,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       <div className="aspect-square bg-white flex items-center justify-center overflow-hidden relative">
         {product.tag && (
           <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest z-10 shadow-lg ${
-            product.tag === 'Oferta' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
+            product.tag === 'Oferta' ? 'bg-green-100 text-green-600' : 
+            product.tag === 'Liquidación' ? 'bg-orange-100 text-orange-600' : 
+            'bg-blue-100 text-blue-600'
           }`}>
             {product.tag}
           </span>

@@ -8,7 +8,7 @@ export interface Product {
   image_url: string;
   category: string;
   stock: number;
-  tag?: 'Oferta' | 'Liquidación' | '';
+  tag?: string;
   created_at?: string;
 }
 

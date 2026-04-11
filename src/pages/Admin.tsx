@@ -296,17 +296,27 @@ export const Admin = () => {
                           <td className="px-5 py-6 text-center">
                             <select 
                               onClick={e => e.stopPropagation()} 
-                              value={product.tag || ''} 
-                              onChange={e => handleUpdateTag(product.id, e.target.value)} 
+                              value={['Oferta', 'Liquidación', ''].includes(product.tag || '') ? product.tag || '' : 'CUSTOM'} 
+                              onChange={async (e) => {
+                                let val = e.target.value;
+                                if (val === 'CUSTOM') {
+                                  const custom = prompt('Ingrese un tag personalizado:', product.tag || '');
+                                  if (custom !== null && custom.trim() !== '') val = custom;
+                                  else if (custom === null) return;
+                                }
+                                handleUpdateTag(product.id, val);
+                              }} 
                               className={`px-2 py-1.5 border rounded-lg font-black text-[10px] uppercase bg-white outline-none cursor-pointer transition-all ${
                                 product.tag === 'Oferta' ? 'border-green-200 text-green-600 bg-green-50/50' : 
                                 product.tag === 'Liquidación' ? 'border-orange-200 text-orange-600 bg-orange-50/50' : 
+                                product.tag ? 'border-blue-200 text-blue-600 bg-blue-50/50' :
                                 'border-slate-200 text-slate-400'
                               }`}
                             >
                               <option value="">Sin Tag</option>
                               <option value="Oferta">Oferta</option>
                               <option value="Liquidación">Liquidación</option>
+                              <option value="CUSTOM">Personalizado...</option>
                             </select>
                           </td>
                           <td className="px-5 py-6 text-center">
@@ -524,11 +534,37 @@ export const Admin = () => {
                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select></div>
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-300 uppercase ml-4">Stock</label><input type="number" required value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 rounded-[18px] font-black outline-none text-xs" placeholder="0" /></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-300 uppercase ml-4">Tag</label><select value={newProduct.tag} onChange={e => setNewProduct({...newProduct, tag: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 rounded-[18px] font-black text-[10px] uppercase outline-none">
-                       <option value="">Sin Tag</option>
-                       <option value="Oferta">Oferta</option>
-                       <option value="Liquidación">Liquidación</option>
-                    </select></div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-300 uppercase ml-4">Tag</label>
+                      <div className="flex gap-2">
+                        <select 
+                          value={['Oferta', 'Liquidación', ''].includes(newProduct.tag) ? newProduct.tag : 'CUSTOM'} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === 'CUSTOM') {
+                              setNewProduct({...newProduct, tag: 'NUEVO'});
+                            } else {
+                              setNewProduct({...newProduct, tag: val});
+                            }
+                          }} 
+                          className="flex-1 px-5 py-3.5 bg-slate-50 rounded-[18px] font-black text-[10px] uppercase outline-none"
+                        >
+                           <option value="">Sin Tag</option>
+                           <option value="Oferta">Oferta</option>
+                           <option value="Liquidación">Liquidación</option>
+                           <option value="CUSTOM">Personalizado...</option>
+                        </select>
+                        {!['Oferta', 'Liquidación', ''].includes(newProduct.tag) && (
+                          <input 
+                            value={newProduct.tag} 
+                            onChange={e => setNewProduct({...newProduct, tag: e.target.value})} 
+                            className="flex-1 px-5 py-3.5 bg-blue-50/50 rounded-[18px] font-black text-[10px] uppercase outline-none border border-blue-100 placeholder-blue-300"
+                            placeholder="Escribí acá..."
+                            autoFocus
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1"><label className="text-[10px] font-black text-orange-400 uppercase ml-4">Costo Exacto</label><input type="number" step="0.01" required value={newProduct.cost} onChange={e => handlePriceCalc(e.target.value, 'cost', 'new')} className="w-full bg-orange-50/10 px-5 py-3.5 rounded-[18px] font-black outline-none text-xs" /></div>
