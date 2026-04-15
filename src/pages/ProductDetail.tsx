@@ -13,6 +13,7 @@ export const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
 
   useEffect(() => {
@@ -101,8 +102,16 @@ export const ProductDetail = () => {
                  </div>
 
                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Agregá la cantidad de unidades</span>
+                       <div className="flex items-center gap-4 bg-gray-50 border border-gray-100 rounded-2xl p-2 max-w-[200px]">
+                          <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 flex items-center justify-center font-black text-xl text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm">-</button>
+                          <span className="flex-1 text-center font-black text-xl text-gray-800">{quantity}</span>
+                          <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 flex items-center justify-center font-black text-xl text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm">+</button>
+                       </div>
+                    </div>
                     <button 
-                      onClick={() => addToCart(product)}
+                      onClick={() => addToCart(product, quantity)}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-5 font-black uppercase text-xs tracking-[.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
                     >
                        <ShoppingCart size={18} /> Agregar al Carrito
