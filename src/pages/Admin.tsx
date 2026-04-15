@@ -27,6 +27,7 @@ export const Admin = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [isPdfMenuOpen, setIsPdfMenuOpen] = useState(false);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
@@ -228,21 +229,29 @@ export const Admin = () => {
     }
   };
 
-  const generatePDF = async () => {
-    if (products.length === 0) {
+  const generatePDF = async (categoryName?: string) => {
+    let productsToExport = products;
+    if (categoryName) {
+      productsToExport = products.filter(p => p.category === categoryName);
+    }
+
+    if (productsToExport.length === 0) {
       setStatus({ type: 'error', msg: 'No hay productos para exportar' });
       setTimeout(() => setStatus(null), 3000);
+      setIsPdfMenuOpen(false);
       return;
     }
 
     setStatus({ type: 'success', msg: 'Preparando PDF... descargando imágenes' });
+    setIsPdfMenuOpen(false);
 
     try {
       const doc = new jsPDF();
       
       // Encabezado
       doc.setFontSize(22);
-      doc.text('Lista de Precios - MG Distribuciones', 14, 20);
+      const title = categoryName ? `Lista de Precios - ${categoryName}` : 'Lista de Precios Completa';
+      doc.text(title, 14, 20);
       
       doc.setFontSize(10);
       doc.text(`Fecha de actualización: ${new Date().toLocaleDateString()}`, 14, 30);
@@ -252,7 +261,7 @@ export const Admin = () => {
       const tableRows: any[] = [];
 
       // Ordenar productos por categoría y luego por nombre
-      const sortedProducts = [...products].sort((a, b) => {
+      const sortedProducts = [...productsToExport].sort((a, b) => {
         if(a.category < b.category) return -1;
         if(a.category > b.category) return 1;
         return a.name.localeCompare(b.name);
@@ -313,7 +322,8 @@ export const Admin = () => {
         }
       });
 
-      doc.save(`Lista_Precios_MG_${new Date().toISOString().split('T')[0]}.pdf`);
+      const fileName = categoryName ? `Lista_Precios_${categoryName.replace(/\\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf` : `Lista_Precios_MG_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
       setStatus({ type: 'success', msg: '¡PDF generado con éxito!' });
     } catch (error) {
       console.error('Error al generar PDF:', error);
@@ -349,7 +359,24 @@ export const Admin = () => {
           <div className="flex gap-3">
             {activeTab === 'inventory' && (
               <>
-                <button onClick={generatePDF} className="bg-slate-100 flex items-center gap-2 text-blue-600 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"><Download size={14}/> PDF</button>
+                <div className="relative">
+                  <button onClick={() => setIsPdfMenuOpen(!isPdfMenuOpen)} className="bg-slate-100 flex items-center gap-2 text-blue-600 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">
+                    <Download size={14}/> PDF <ChevronDown size={14} className={`transition-transform ${isPdfMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isPdfMenuOpen && (
+                    <div className="absolute top-full right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                       <button onClick={() => generatePDF()} className="w-full text-left px-4 py-3 bg-blue-50/50 hover:bg-blue-50 text-blue-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all mb-2">Toda la lista completa</button>
+                       <div className="h-px bg-slate-100 w-full my-2"></div>
+                       <div className="max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                         {categories.map(c => (
+                           <button key={c.id} onClick={() => generatePDF(c.name)} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-500 rounded-xl font-bold text-[10px] uppercase transition-all truncate">
+                             {c.name}
+                           </button>
+                         ))}
+                       </div>
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setIsManagingCategories(true)} className="bg-slate-100 text-slate-500 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200">Secciones</button>
               </>
             )}
