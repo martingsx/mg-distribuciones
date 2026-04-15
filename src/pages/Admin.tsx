@@ -6,8 +6,11 @@ import type { Category } from '../services/productService';
 import type { Product } from '../types/product';
 import { 
   Trash2, LayoutDashboard, Package, LogOut, Loader2, Search, TrendingUp, AlertCircle, Image as ImageIcon, Wallet,
-  Users, Calendar, Phone, ChevronDown, ChevronUp
+  Users, Calendar, Phone, ChevronDown, ChevronUp, Download
 } from 'lucide-react';
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const LOW_STOCK_THRESHOLD = 5;
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
@@ -225,6 +228,101 @@ export const Admin = () => {
     }
   };
 
+  const generatePDF = async () => {
+    if (products.length === 0) {
+      setStatus({ type: 'error', msg: 'No hay productos para exportar' });
+      setTimeout(() => setStatus(null), 3000);
+      return;
+    }
+
+    setStatus({ type: 'success', msg: 'Preparando PDF... descargando imágenes' });
+
+    try {
+      const doc = new jsPDF();
+      
+      // Encabezado
+      doc.setFontSize(22);
+      doc.text('Lista de Precios - MG Distribuciones', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Fecha de actualización: ${new Date().toLocaleDateString()}`, 14, 30);
+
+      // Tabla: se agrega Imagen, se quita Stock, se cambia a Precio x Unidad
+      const tableColumn = ["Imagen", "Producto", "Categoría", "Precio x Unidad"];
+      const tableRows: any[] = [];
+
+      // Ordenar productos por categoría y luego por nombre
+      const sortedProducts = [...products].sort((a, b) => {
+        if(a.category < b.category) return -1;
+        if(a.category > b.category) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      // Pre-cargar imágenes a base64
+      const productsWithImages = await Promise.all(sortedProducts.map(async (prod) => {
+        let base64 = null;
+        if (prod.image_url) {
+          try {
+             const res = await fetch(prod.image_url);
+             const blob = await res.blob();
+             base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+             });
+          } catch(e) { console.error("Error loading image", e); }
+        }
+        return { ...prod, base64 };
+      }));
+
+      productsWithImages.forEach(product => {
+        const productData = [
+          '', // placeholder para la imagen
+          product.name,
+          product.category || '---',
+          `$${product.price.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+        ];
+        tableRows.push(productData);
+      });
+
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 40,
+        styles: { fontSize: 10, minCellHeight: 18, valign: 'middle' },
+        headStyles: { fillColor: [37, 99, 235] }, // blue-600
+        columnStyles: {
+            0: { cellWidth: 24, halign: 'center' }, // Columna imagen
+            1: { cellWidth: 'auto' }, // Nombre
+            2: { cellWidth: 40 }, // Categoría
+            3: { cellWidth: 35, halign: 'center' } // Precio
+        },
+        didDrawCell: (data) => {
+          // Si estamos en la columna 0 (Imagen) y es el tbody dibujar la imagen
+          if (data.column.index === 0 && data.cell.section === 'body') {
+            const product = productsWithImages[data.row.index];
+            if (product && product.base64) {
+               const imgWidth = 14;
+               const imgHeight = 14;
+               // Centrar imagen en la celda
+               const x = data.cell.x + (data.cell.width - imgWidth) / 2;
+               const y = data.cell.y + (data.cell.height - imgHeight) / 2;
+               doc.addImage(product.base64 as string, x, y, imgWidth, imgHeight);
+            }
+          }
+        }
+      });
+
+      doc.save(`Lista_Precios_MG_${new Date().toISOString().split('T')[0]}.pdf`);
+      setStatus({ type: 'success', msg: '¡PDF generado con éxito!' });
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      setStatus({ type: 'error', msg: 'Ocurrió un error al generar el PDF' });
+    } finally {
+      setTimeout(() => setStatus(null), 3000);
+    }
+  };
+
   const filteredProducts = products.filter(p => (filterCategory === 'Todos' || p.category === filterCategory) && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredOrders = orders.filter(o => o.customer_name.toLowerCase().includes(orderSearch.toLowerCase()));
 
@@ -249,7 +347,12 @@ export const Admin = () => {
         <header className="bg-white/90 backdrop-blur-md border-b px-10 py-6 flex items-center justify-between sticky top-0 z-40">
           <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter italic">Sistema MG</h2>
           <div className="flex gap-3">
-            {activeTab === 'inventory' && <button onClick={() => setIsManagingCategories(true)} className="bg-slate-100 text-slate-500 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200">Secciones</button>}
+            {activeTab === 'inventory' && (
+              <>
+                <button onClick={generatePDF} className="bg-slate-100 flex items-center gap-2 text-blue-600 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"><Download size={14}/> PDF</button>
+                <button onClick={() => setIsManagingCategories(true)} className="bg-slate-100 text-slate-500 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200">Secciones</button>
+              </>
+            )}
             <button onClick={() => setIsAdding(true)} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all outline-none">Nueva Carga</button>
           </div>
         </header>
