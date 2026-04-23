@@ -78,7 +78,7 @@ export const ProductDetail = () => {
               <div className="p-10 lg:p-20 space-y-10">
                  <div className="space-y-4">
                     <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em]">{product.category}</span>
-                    <h1 className="text-4xl lg:text-5xl font-black text-gray-900 leading-none tracking-tighter italic">{product.name}</h1>
+                    <h1 title={product.name} className="text-4xl lg:text-5xl font-black text-gray-900 leading-none tracking-tighter italic">{product.name}</h1>
                     <div className="flex items-center gap-2 text-orange-400">
                        {Array.from({ length: 5 }).map((_, i) => <Award key={i} size={16} fill="currentColor" />)}
                        <span className="text-xs font-bold text-gray-400 ml-2">Producto Recomendado</span>
@@ -87,7 +87,14 @@ export const ProductDetail = () => {
 
                  <div className="space-y-1">
                     <p className="text-gray-400 text-sm font-bold line-through">$ {(product.price * 1.2).toLocaleString('es-AR')}</p>
-                    <h2 className="text-6xl font-black text-gray-900 tracking-tighter">$ {product.price.toLocaleString('es-AR')}</h2>
+                    <div className="flex flex-col">
+                       {quantity > 1 && (
+                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1 animate-in fade-in slide-in-from-bottom-1">
+                           Precio Unitario: $ {product.price.toLocaleString('es-AR')}
+                         </span>
+                       )}
+                       <h2 className="text-6xl font-black text-gray-900 tracking-tighter">$ {(product.price * quantity).toLocaleString('es-AR')}</h2>
+                    </div>
                     <p className="text-green-600 text-sm font-black uppercase tracking-widest">Ahorrás el 20% hoy</p>
                  </div>
 
@@ -106,7 +113,13 @@ export const ProductDetail = () => {
                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Agregá la cantidad de unidades</span>
                        <div className="flex items-center gap-4 bg-gray-50 border border-gray-100 rounded-2xl p-2 max-w-[200px]">
                           <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 flex items-center justify-center font-black text-xl text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm">-</button>
-                          <span className="flex-1 text-center font-black text-xl text-gray-800">{quantity}</span>
+                          <input 
+                              type="number" 
+                              min="1"
+                              value={quantity}
+                              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="flex-1 w-full text-center font-black text-xl text-gray-800 bg-transparent border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                           />
                           <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 flex items-center justify-center font-black text-xl text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm">+</button>
                        </div>
                     </div>

@@ -30,7 +30,10 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           <span className="text-2xl font-black text-gray-900 tracking-tighter">
             $ {product.price.toLocaleString('es-AR')}
           </span>
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-tight line-clamp-2 leading-relaxed h-8 group-hover:text-blue-500 transition-colors">
+          <h3 
+            title={product.name}
+            className="text-xs font-bold text-gray-500 uppercase tracking-tight line-clamp-2 leading-relaxed h-8 group-hover:text-blue-500 transition-colors"
+          >
             {product.name}
           </h3>
         </div>

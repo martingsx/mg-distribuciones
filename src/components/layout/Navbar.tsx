@@ -35,7 +35,7 @@ export const Navbar = () => {
       if (query.trim().length >= 2) {
         setIsSearching(true);
         try {
-          const { products } = await productService.searchProducts(query, 1, 5);
+          const { products } = await productService.searchProducts(query, 1, 10);
           setSuggestions(products);
           setShowSuggestions(true);
         } catch (error) {
@@ -111,7 +111,7 @@ export const Navbar = () => {
                         <Loader2 size={16} className="animate-spin text-blue-500" /> BUSCANDO...
                       </div>
                     ) : (
-                      <div className="py-2">
+                      <div className="py-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                         {suggestions.map((product) => (
                           <div
                             key={product.id}

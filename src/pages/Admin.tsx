@@ -6,7 +6,7 @@ import type { Category } from '../services/productService';
 import type { Product } from '../types/product';
 import { 
   Trash2, LayoutDashboard, Package, LogOut, Loader2, Search, TrendingUp, AlertCircle, Image as ImageIcon, Wallet,
-  Users, Calendar, Phone, ChevronDown, ChevronUp, Download
+  Users, Calendar, Phone, ChevronDown, ChevronUp, Download, Pencil
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
@@ -43,6 +43,11 @@ export const Admin = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Edit Modal States
+  const [isEditingModal, setIsEditingModal] = useState(false);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -134,6 +139,20 @@ export const Admin = () => {
       margin: (product.margin || 30).toString(),
       stock: product.stock.toString()
     });
+    setEditImagePreview(product.image_url);
+    setEditImageFile(null);
+    setIsEditingModal(true);
+  };
+
+  const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > MAX_FILE_SIZE) return setStatus({ type: 'error', msg: 'Peso excedido (>1MB)' });
+      setEditImageFile(file);
+      setEditImagePreview(URL.createObjectURL(file));
+      setStatus({ type: 'success', msg: 'Nueva imagen cargada' });
+      setTimeout(() => setStatus(null), 2000);
+    }
   };
 
   const handleUpdateTag = async (productId: string, tag: string) => {
@@ -148,10 +167,17 @@ export const Admin = () => {
     }
   };
 
-  const saveEdit = async () => {
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingId || isSaving) return;
     setIsSaving(true);
     try {
+      let imageUrl = editForm.image_url;
+      
+      if (editImageFile) {
+        imageUrl = await productService.uploadProductImage(editImageFile);
+      }
+
       const payload = {
         name: String(editForm.name).trim(),
         category: String(editForm.category).trim(),
@@ -159,15 +185,23 @@ export const Admin = () => {
         margin: parseFloat(editForm.margin) || 0,
         price: Number(editForm.price),
         stock: parseInt(editForm.stock) || 0,
-        tag: editForm.tag || ''
+        tag: editForm.tag || '',
+        image_url: imageUrl
       };
+      
       await supabase.from('products').update(payload).eq('id', editingId);
-      setStatus({ type: 'success', msg: 'Actualizado' });
+      setStatus({ type: 'success', msg: 'Producto actualizado con éxito' });
+      setIsEditingModal(false);
       setEditingId(null);
+      setEditImageFile(null);
+      setEditImagePreview(null);
       await loadAll();
+    } catch (err: any) {
+      console.error("Error al actualizar:", err);
+      setStatus({ type: 'error', msg: err.message || 'Error al actualizar' });
     } finally {
       setIsSaving(false);
-      setTimeout(() => setStatus(null), 2000);
+      setTimeout(() => setStatus(null), 3000);
     }
   };
 
@@ -407,21 +441,14 @@ export const Admin = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredProducts.map(product => {
-                      const isEditing = editingId === product.id;
                       return (
-                        <tr key={product.id} className={`group transition-all ${isEditing ? 'bg-blue-50/50' : 'hover:bg-slate-50/50 cursor-pointer'}`} onClick={() => !isEditing && startEditing(product)}>
+                         <tr key={product.id} className="group transition-all hover:bg-slate-50/50 cursor-pointer" onClick={() => startEditing(product)}>
                           <td className="px-10 py-6 flex items-center gap-5">
                             <img src={product.image_url} className="w-12 h-12 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform" />
-                            {isEditing ? <input onClick={e => e.stopPropagation()} autoFocus value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="px-3 py-1.5 border border-blue-200 rounded-lg font-bold w-full bg-white outline-none" /> : <h5 className="font-black text-slate-800 uppercase tracking-tighter text-base leading-none truncate max-w-[150px] italic">{product.name}</h5>}
+                            <h5 className="font-black text-slate-800 uppercase tracking-tighter text-base leading-none truncate max-w-[150px] italic">{product.name}</h5>
                           </td>
                           <td className="px-5 py-6 text-center">
-                            {isEditing ? (
-                              <select onClick={e => e.stopPropagation()} value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} className="px-2 py-1.5 border border-blue-200 rounded-lg font-bold text-[10px] uppercase bg-white outline-none">
-                                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                              </select>
-                            ) : (
-                              <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-full font-black text-[8px] uppercase">{product.category || '---'}</span>
-                            )}
+                            <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-full font-black text-[8px] uppercase">{product.category || '---'}</span>
                           </td>
                           <td className="px-5 py-6 text-center">
                             <select 
@@ -450,36 +477,21 @@ export const Admin = () => {
                             </select>
                           </td>
                           <td className="px-5 py-6 text-center">
-                            {isEditing ? (
-                              <input onClick={e => e.stopPropagation()} type="number" step="0.01" value={editForm.cost} onChange={e => handlePriceCalc(e.target.value, 'cost', 'edit')} className="w-20 px-2 py-1.5 border border-blue-200 rounded-lg font-black text-[10px] outline-none text-center" />
-                            ) : (
-                              <span className="font-bold text-slate-300 tracking-tighter italic">${product.cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                            )}
+                            <span className="font-bold text-slate-300 tracking-tighter italic">${product.cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                           </td>
                           <td className="px-5 py-6 text-center">
-                            {isEditing ? (
-                              <input onClick={e => e.stopPropagation()} type="number" value={editForm.margin} onChange={e => handlePriceCalc(e.target.value, 'margin', 'edit')} className="w-12 px-2 py-1.5 border border-blue-200 rounded-lg font-black text-[10px] outline-none text-center" />
-                            ) : (
-                              <span className="text-[9px] font-black text-blue-400 px-2 py-1 bg-blue-50 rounded-lg">{product.margin}%</span>
-                            )}
+                            <span className="text-[9px] font-black text-blue-400 px-2 py-1 bg-blue-50 rounded-lg">{product.margin}%</span>
                           </td>
                           <td className="px-5 py-6 text-center font-black text-slate-800 text-lg tracking-tighter italic">
-                             ${(isEditing ? editForm.price : product.price).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                             ${product.price.toLocaleString(undefined, {minimumFractionDigits: 2})}
                           </td>
                           <td className="px-8 py-6 text-center font-black text-slate-500">
-                             {isEditing ? (
-                               <input onClick={e => e.stopPropagation()} type="number" value={editForm.stock} onChange={e => setEditForm({...editForm, stock: e.target.value})} className="w-16 px-2 py-1.5 border border-blue-200 rounded-lg font-black text-[10px] outline-none text-center" />
-                             ) : (
-                               <span className={`px-4 py-1.5 rounded-lg text-xs ${product.stock <= LOW_STOCK_THRESHOLD ? 'bg-red-50 text-red-500 font-black' : 'bg-slate-100/30'}`}>{product.stock}</span>
-                             )}
+                             <span className={`px-4 py-1.5 rounded-lg text-xs ${product.stock <= LOW_STOCK_THRESHOLD ? 'bg-red-50 text-red-500 font-black' : 'bg-slate-100/30'}`}>{product.stock}</span>
                           </td>
                           <td className="px-10 py-6 text-right">
                             <div className="flex gap-2 justify-end" onClick={e => e.stopPropagation()}>
-                              {isEditing ? (
-                                <button onClick={saveEdit} className="px-5 py-2.5 bg-green-500 text-white rounded-xl shadow-lg font-black uppercase text-[10px]">OK</button>
-                              ) : (
-                                <button onClick={(e) => { e.stopPropagation(); handleDelete(product.id, product.name); }} className="p-3 text-slate-200 hover:text-red-400 transition-all font-sans">✕</button>
-                              )}
+                                <button onClick={() => startEditing(product)} className="p-3 text-slate-200 hover:text-blue-500 transition-all font-sans"><Pencil size={18} /></button>
+                                <button onClick={() => handleDelete(product.id, product.name)} className="p-3 text-slate-200 hover:text-red-400 transition-all font-sans">✕</button>
                             </div>
                           </td>
                         </tr>
@@ -626,7 +638,6 @@ export const Admin = () => {
           )}
         </div>
       </main>
-
       {/* Modal Alta Producto - CTRL+V FIXED */}
       {isAdding && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in transition-all">
@@ -648,7 +659,7 @@ export const Admin = () => {
                       
                       <div className="flex-1">
                         <p className={`text-[10px] font-black uppercase ${imageFile ? 'text-green-600' : 'text-blue-500'}`}>
-                           {imageFile ? 'Imagen Listá para subirse' : '¡Pega con CTRL + V!'}
+                           {imageFile ? 'Imagen Listo para subirse' : '¡Pega con CTRL + V!'}
                         </p>
                         <p className="text-[8px] font-bold text-slate-300 uppercase">O selecciona tu archivo manualmente</p>
                       </div>
@@ -705,6 +716,106 @@ export const Admin = () => {
                      <div className="flex-1 bg-slate-900 px-6 py-5 rounded-[24px] flex flex-col justify-center"><span className="text-slate-500 text-[8px] font-black tracking-[0.4em] mb-1 uppercase">PVP FINAL</span><h4 className="text-white text-3xl font-black tracking-tighter italic leading-none">${parseFloat(newProduct.price).toLocaleString(undefined, {minimumFractionDigits: 2})}</h4></div>
                      <button disabled={uploading} className="px-10 h-[70px] bg-blue-600 text-white rounded-[24px] font-black uppercase text-[10px] shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
                        {uploading ? <Loader2 className="animate-spin mx-auto"/> : 'CONFIRMAR'}
+                     </button>
+                  </div>
+               </form>
+            </div>
+         </div>
+      )}
+
+
+      {/* Modal Editar Producto */}
+      {isEditingModal && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in transition-all">
+            <div className="bg-white rounded-[40px] w-full max-w-xl p-10 shadow-2xl animate-in zoom-in font-sans">
+               <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter italic">Editar Producto</h3>
+                  <button onClick={() => { setIsEditingModal(false); setEditingId(null); }} className="text-slate-300 hover:text-red-500 font-bold transition-all">X</button>
+               </div>
+               <form onSubmit={saveEdit} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-300 uppercase ml-4">Referencia Comercial</label>
+                    <input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-6 py-4 bg-slate-50 rounded-[20px] font-bold outline-none border-2 border-transparent focus:border-blue-100 transition-all" placeholder="Nombre del producto..." />
+                  </div>
+                  
+                  {/* IMAGE EDIT AREA */}
+                  <div className={`p-6 rounded-[24px] border-2 border-dashed transition-all flex items-center gap-4 ${editImageFile ? 'border-green-400 bg-green-50/20' : 'border-blue-100 bg-blue-50/5'}`}>
+                      <img src={editImagePreview || editForm.image_url} className="w-14 h-14 rounded-lg object-cover shadow-md border-2 border-white" />
+                      
+                      <div className="flex-1">
+                        <p className={`text-[10px] font-black uppercase ${editImageFile ? 'text-green-600' : 'text-blue-500'}`}>
+                           {editImageFile ? 'Nueva imagen lista' : 'Imagen actual'}
+                        </p>
+                        <p className="text-[8px] font-bold text-slate-300 uppercase">Cambiar imagen si es necesario</p>
+                      </div>
+
+                      <div className="relative">
+                        <input type="file" accept="image/*" onChange={handleEditFileSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        <button type="button" className="bg-white border border-slate-100 px-4 py-2 rounded-xl text-[9px] font-black uppercase shadow-sm">Cambiar</button>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-300 uppercase ml-4">Sección</label>
+                      <select value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 rounded-[18px] font-black text-[10px] uppercase outline-none">
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-300 uppercase ml-4">Stock</label>
+                      <input type="number" required value={editForm.stock} onChange={e => setEditForm({...editForm, stock: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 rounded-[18px] font-black outline-none text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-300 uppercase ml-4">Tag</label>
+                      <div className="flex gap-2">
+                        <select 
+                          value={['Oferta', 'Liquidación', ''].includes(editForm.tag) ? editForm.tag : 'CUSTOM'} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === 'CUSTOM') {
+                              setEditForm({...editForm, tag: editForm.tag || 'NUEVO'});
+                            } else {
+                              setEditForm({...editForm, tag: val});
+                            }
+                          }} 
+                          className="flex-1 px-5 py-3.5 bg-slate-50 rounded-[18px] font-black text-[10px] uppercase outline-none"
+                        >
+                           <option value="">Sin Tag</option>
+                           <option value="Oferta">Oferta</option>
+                           <option value="Liquidación">Liquidación</option>
+                           <option value="CUSTOM">Personalizado...</option>
+                        </select>
+                        {!['Oferta', 'Liquidación', ''].includes(editForm.tag) && (
+                          <input 
+                            value={editForm.tag} 
+                            onChange={e => setEditForm({...editForm, tag: e.target.value})} 
+                            className="flex-1 px-5 py-3.5 bg-blue-50/50 rounded-[18px] font-black text-[10px] uppercase outline-none border border-blue-100 placeholder-blue-300"
+                            placeholder="Tag personalizado..."
+                            autoFocus
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-orange-400 uppercase ml-4">Costo Exacto</label>
+                      <input type="number" step="0.01" required value={editForm.cost} onChange={e => handlePriceCalc(e.target.value, 'cost', 'edit')} className="w-full bg-orange-50/10 px-5 py-3.5 rounded-[18px] font-black outline-none text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-blue-500 uppercase ml-4">Rendimiento %</label>
+                      <input type="number" step="0.1" value={editForm.margin} onChange={e => handlePriceCalc(e.target.value, 'margin', 'edit')} className="w-full bg-blue-50/10 px-5 py-3.5 rounded-[18px] font-black outline-none text-xs" />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-4">
+                     <div className="flex-1 bg-slate-900 px-6 py-5 rounded-[24px] flex flex-col justify-center">
+                       <span className="text-slate-500 text-[8px] font-black tracking-[0.4em] mb-1 uppercase">PVP FINAL ACTUALIZADO</span>
+                       <h4 className="text-white text-3xl font-black tracking-tighter italic leading-none">${Number(editForm.price).toLocaleString(undefined, {minimumFractionDigits: 2})}</h4>
+                     </div>
+                     <button disabled={isSaving} className="px-10 h-[70px] bg-blue-600 text-white rounded-[24px] font-black uppercase text-[10px] shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+                       {isSaving ? <Loader2 className="animate-spin mx-auto"/> : 'GUARDAR CAMBIOS'}
                      </button>
                   </div>
                </form>

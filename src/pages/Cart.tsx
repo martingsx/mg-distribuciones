@@ -99,16 +99,24 @@ export const Cart = () => {
                       <div className="flex items-center gap-4 mt-4">
                          <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-100">
                             <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all"><Minus size={14}/></button>
-                            <span className="w-10 text-center font-black text-sm">{item.quantity}</span>
+                             <input 
+                                type="number" 
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updateQuantity(item.id, Math.max(1, parseInt(e.target.value) || 1))}
+                                className="w-12 text-center font-black text-sm bg-transparent border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                             />
                             <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all"><Plus size={14}/></button>
                          </div>
                          <button onClick={() => removeFromCart(item.id)} className="text-red-300 hover:text-red-500 transition-colors p-2"><Trash2 size={18}/></button>
                       </div>
                    </div>
-                   <div className="text-right hidden sm:block">
-                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Subtotal</p>
-                      <p className="text-lg font-black text-gray-900 italic">$ {(item.price * item.quantity).toLocaleString('es-AR')}</p>
-                   </div>
+                    <div className="text-right hidden sm:block">
+                       <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">
+                         {item.quantity > 1 ? `$ ${item.price.toLocaleString('es-AR')} c/u` : 'Subtotal'}
+                       </p>
+                       <p className="text-lg font-black text-gray-900 italic">$ {(item.price * item.quantity).toLocaleString('es-AR')}</p>
+                    </div>
                 </div>
               ))}
             </div>
